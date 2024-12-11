@@ -1,0 +1,191 @@
+
+Step-by-Step Guide to Achieve Modified TD3 for Car Racing
+
+---
+
+### Step 1: Set Up the Environment
+Car Racing is available in OpenAI Gym as `CarRacing-v1`. Start by installing required libraries and setting up the environment.
+
+Code:
+```bash
+pip install stable-baselines3[extra] gym
+```
+
+```python
+import gym
+from stable_baselines3 import TD3
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+import numpy as np
+```
+
+Pseudocode:
+1. Import the necessary libraries.
+2. Create the `CarRacing-v1` environment.
+
+Code:
+```python
+# Create the Car Racing environment
+env = gym.make("CarRacing-v1")
+```
+
+---
+
+### Step 2: Preprocess the Environment
+Enhance the observations (e.g., images) to make them suitable for training. Normalize the inputs and preprocess raw images if necessary.
+
+Code Revision:
+```python
+# Normalize pixel values to [0, 1]
+env = gym.wrappers.TransformObservation(env, lambda obs: obs / 255.0)
+```
+
+---
+
+### Step 3: Define Exploration Noise
+To encourage exploration, define an action noise mechanism (e.g., Ornstein-Uhlenbeck noise or Gaussian noise).
+
+Pseudocode:
+1. Initialize the action space.
+2. Define the noise mechanism.
+
+Code:
+```python
+# Define exploration noise
+n_actions = env.action_space.shape[-1]
+action_noise = Ornstein-UhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+```
+
+---
+
+### Step 4: Customize the Reward Function
+Modify the reward function to incentivize speed, track alignment, and penalize undesired behavior.
+
+Pseudocode:
+1. Override the `step` function to calculate a custom reward.
+2. Extract speed, track alignment, and penalties from the environment observations.
+
+Code:
+```python
+class CustomCarRacingEnv(gym.Wrapper):
+    def __init__(self, env):
+        super(CustomCarRacingEnv, self).__init__(env)
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        speed = obs[2]  # Example: Extract speed from observation (adjust index as needed)
+        track_alignment = 1 - abs(obs[0])  # Example: Penalize deviation from center track
+        brake_penalty = -abs(action[2]) if action[2] < 0 else 0  # Penalize braking
+
+        # Custom reward
+        reward += 0.1 * speed + 0.5 * track_alignment + brake_penalty
+        return obs, reward, done, info
+
+# Wrap the environment with the custom reward
+env = CustomCarRacingEnv(env)
+```
+
+---
+
+### Step 5: Initialize TD3 Model
+Use the `TD3` algorithm from `stable-baselines3` and configure the hyperparameters.
+
+Pseudocode:
+1. Set learning rates and other hyperparameters.
+2. Use the CNN policy to process image observations.
+3. Specify the noise mechanism for exploration.
+
+Code:
+```python
+# Create TD3 model
+model = TD3(
+    "CnnPolicy",             # Use CNN to process image-based observations
+    env,
+    action_noise=action_noise,
+    learning_rate=1e-4,      # Learning rate for stable training
+    buffer_size=100000,      # Replay buffer size
+    batch_size=64,           # Batch size for updates
+    train_freq=(1, "step"),  # Train after every step
+    gamma=0.99,              # Discount factor
+    tau=0.005,               # Target network soft update rate
+    verbose=1,               # Print training progress
+    tensorboard_log="./td3_car_racing_logs/"
+)
+```
+
+---
+
+### Step 6: Train the Model
+Train the model using `model.learn` and monitor progress.
+
+Pseudocode:
+1. Train the model for a specified number of timesteps.
+2. Save the model periodically.
+
+Code:
+```python
+# Train the model
+model.learn(total_timesteps=100000)
+
+# Save the model
+model.save("td3_car_racing")
+```
+
+---
+
+### Step 7: Test the Model
+Evaluate the trained model by loading it and running it in the environment.
+
+Pseudocode:
+1. Load the trained model.
+2. Reset the environment and test the policy.
+3. Render the environment to visualize performance.
+
+Code:
+```python
+# Load the trained model
+model = TD3.load("td3_car_racing", env=env)
+
+# Test the model
+obs = env.reset()
+for _ in range(1000):
+    action, _ = model.predict(obs, deterministic=True)
+    obs, reward, done, info = env.step(action)
+    env.render()
+    if done:
+        obs = env.reset()
+
+env.close()
+```
+
+---
+
+### Step 8: Fine-Tune Hyperparameters
+Iteratively refine the following:
+1. **Learning Rate**: Adjust between \( 1e{-4} \) and \( 1e{-3} \).
+2. **Reward Weights**: Tune \( lpha \), \( eta \), \( \gamma \), and \( \delta \) for speed, alignment, off-track penalties, and brake penalties.
+3. **Noise Parameters**: Adjust \( \sigma \) and explore Gaussian vs Ornstein-Uhlenbeck noise.
+
+Code Example:
+```python
+# Example: Adjust hyperparameters
+model = TD3(
+    "CnnPolicy",
+    env,
+    action_noise=NormalActionNoise(mean=np.zeros(n_actions), sigma=0.2 * np.ones(n_actions)),
+    learning_rate=1e-4,
+    batch_size=128,
+)
+```
+
+---
+
+### Summary of Steps
+1. **Set Up the Environment**: Create and preprocess `CarRacing-v1`.
+2. **Define Exploration Noise**: Use Ornstein-Uhlenbeck or Gaussian noise.
+3. **Customize Reward Function**: Encourage speed and track alignment, penalize braking and off-track behavior.
+4. **Initialize TD3 Model**: Use CNN policy and configure hyperparameters.
+5. **Train the Model**: Learn from the environment and save periodically.
+6. **Test the Model**: Load and evaluate the trained model.
+7. **Fine-Tune**: Iteratively optimize hyperparameters for better performance.
+
+This structure ensures you can efficiently implement and improve the TD3 algorithm for Car Racing.
